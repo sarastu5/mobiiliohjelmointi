@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="msapplication-tap-highlight" content="no" />
+	<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width" />
+	<!--
+	<meta http-equiv="Content-Security-Policy" content="
+			default-src 'self' 'unsafe-inline'  http://api.openweathermap.org https://mts.googleapis.com https://maps.googleapis.com https://maps.gstatic.com ws://10.213.238.193:3000/ http://code.jquery.com https://code.jquery.com https://csi.gstatic.com  https://ssl.gstatic.com gap: data: blob: filesystem: ; 
+	" />
+	-->
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+	<script src="https://code.jquery.com/jquery-2.1.4.js" integrity="sha256-siFczlgw4jULnUICcdm9gjQPZkw/YPDqhQ9+nAOScE4="	crossorigin="anonymous"></script>
+	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+   <link rel="stylesheet" type="text/css" href="css/index.css">
+	<title>Auringonlaskut</title>
+	
+	<style>
+      #map {
+        width: 100%;
+        height: 400px;
+        background-color: grey;
+      }
+    </style>
+</head>
+<body>
+	<div data-role="page" id="etusivu">
+		<div data-data-role="header">
+			<h1>Auringonlaskut</h1>
+		</div>        
+		<div data-role="main" class="ui-content ui-body-a">	
+			<div id="map" style="height:600px"></div> 			
+		</div>
+
+		<div data-role="footer">
+			<h1></h1>
+		</div>
+	</div>
+	
+	<script type="text/javascript" src="cordova.js"></script> <!-- mahdollistaa laitteen ominaisuuksien käytön -->	
+	
+	<script>
+		function initMap() {
+			var helsinki = {lat: 60.192059, lng: 24.945831};
+			var mapOptions = {
+				zoom: 10,
+				center: helsinki
+			};
+			var map = new google.maps.Map(document.getElementById('map'), mapOptions);
+			haeTiedot(map); //hakee kuvat palvelimelta
+		}
+		
+		function haeTiedot(map) {
+			$.getJSON("http://proto387.haaga-helia.fi/~a1602823/backend/auringonlasku.php", function(result){ //hakee backend-tiedoston tiedot ja muuttaa sen Javascriptille JSONiksi				
+			$.each(result, function(i, field) { //käy parametrina annetun taulukon läpi ja kutsuu jokaiselle metodia, fieldissä on yksi rivi
+				var paikka = {lat: parseFloat(field.Lat), lng: parseFloat(field.Lng)};
+				
+				if (field.Kuvaus == null) {
+					field.Kuvaus = " ";
+				}
+				
+				var contentString = "Aika: " + field.Aika + "<br> Paikka: " + field.Paikka + "<br> Arvio: " + field.Arvio + "<br> Kuvaus: " + field.Kuvaus;
+
+				var infowindow = new google.maps.InfoWindow({
+					content: contentString
+				});
+				
+				var marker = new google.maps.Marker({
+					position: paikka,
+					map: map
+				});
+				
+				marker.addListener('click', function() {
+					infowindow.open(map, marker);
+				});
+				
+				
+				
+				/*
+				$("#tiedotTaulu tbody").append //append = lisää sisältöä perään					
+												("<tr><td>"
+												+field.Aika
+												+"</td><td>"	
+												+field.Paikka
+												+"</td><td>"
+												+field.Lat
+												+"</td><td>"
+												+field.Lng
+												+"</td><td>"
+												+field.Arvio
+												+"</td><td>"
+												+field.Kuvaus
+												+"</td></tr>"); //tietokannan sarakkeet
+				*/
+				});
+			});
+		}
+	
+	/*
+
+		//Laitetaan kaksi jarrua päälle. 
+		var laiteKesken = $.Deferred(); //jarru_1=True
+		var saaSivuKesken = $.Deferred(); //jarru_2=True	
+		
+		//Kun molemmat jarrut on avattu aloitamme laitteen koordinaattien etsimisen (Käytä Firefoxia)
+		$.when(laiteKesken, saaSivuKesken).done(saaSivuValmis);
+		
+		//Lisätään tapahtumankuuntelija tapahtumalle "onDeviceReady"
+		document.addEventListener("deviceReady", onDeviceReady, false);
+		function onDeviceReady() {			
+			laiteKesken.resolve();	//jarru_1=False				
+		}	
+		
+		$(document).on("pagecontainershow", function( event, ui ) {	
+			var toPage = ui.toPage[0].id; 
+			if(toPage=="etusivu"){
+				//haeSaa(60.17,24.94);				
+				saaSivuKesken.resolve(); //jarru_2=False
+			}			
+		});	
+		
+		function saaSivuValmis() {
+		
+			navigator.geolocation.getCurrentPosition(onLocationSuccess, onLocationError, { timeout: 20000 });
+			function onLocationSuccess(position) {				
+				haeSaa(position.coords.latitude, position.coords.longitude);		
+				teeMap(position.coords.latitude, position.coords.longitude);					
+			}
+			function onLocationError() {				
+				console.log("Paikannus ei onnistu");
+			}
+		}
+		
+		function haeSaa(lat, lon) {
+			$.ajax(
+				{
+				url: "http://api.openweathermap.org/data/2.5/weather?lang=fi&lat=" + lat 
+				+ "&lon=" + lon +"&units=metric&APPID=14420295a6aaaebcf8ab02e2d2f6a670",
+				dataType: "json",
+				timeout: 5000
+				}
+			).done(function(data) 
+				{
+				var teksti = "<h3 style='margin-bottom:0em'>" +
+				"<img align='middle' src='http://api.openweathermap.org/img/w/" + data.weather[0].icon + "'>" + 
+				data.main.temp.toFixed(1) + "'C</h3>";	
+				teksti = teksti + "<p>" + data.weather[0].description + "</p>";
+				$("#saaVastaus").html(teksti);
+				}
+			).fail(function() 
+				{
+				$("#saaVastaus").html("Säätä ei pystytä hakemaan");
+				}
+			)
+		}
+		var paikka;
+		function teeMap(lat, lon) {				
+			paikka = new google.maps.LatLng(lat, lon);	
+			
+			var myOptions = {
+				zoom:8,
+				center: {lat: lat, lng: lon} //tai center: paikka
+			};
+			
+			var kartta = new google.maps.Map(document.getElementById("mapKartta"), myOptions);	//tai $("#mapKartta")[0], myOptions	
+			
+			google.maps.event.addListener(kartta, "click", function (event) {
+				//lat and lng is available in e object
+				var lat = event.latLng.lat();
+				var lng = event.latLng.lng();
+				alert(lat + ":" + lng);
+			});
+			
+			var infoWindow = new google.maps.InfoWindow;
+			infoWindow.setPosition(paikka);
+            infoWindow.setContent('Olet tässä.');
+            infoWindow.open(kartta);
+			
+			$.ajax({
+					type: 'POST',
+					data: $("#loginLomake").serialize(),
+					url: 'http://proto387.haaga-helia.fi/~christian.brade/backend/paikat.html',
+					success: function(data){
+						var locations=[];
+						var paikat = JSON.parse(data);						
+						for(var i=0;i<paikat.length;i++){
+							var paikka={
+							"lat" : parseFloat(paikat[i].lat),
+							"lng" : parseFloat(paikat[i].lng)
+							};							
+							locations.push(paikka);
+						}	
+						var markers = locations.map(function(location, i) {
+						return new google.maps.Marker({
+							position: location,
+							map: kartta,
+							title: "paikka_"+i,	
+							label: laskeEtaisyys(new google.maps.LatLng(location)) + " km"
+						});				
+			});	
+					},
+					error: function(){	
+						console.log(2);											
+					}
+				});			
+			
+						
+		}
+		function laskeEtaisyys(kohde){ //muista lisätä maps.googleapis -linkin perään &libraries=geometry
+			var etaisyys = google.maps.geometry.spherical.computeDistanceBetween(paikka, kohde);
+			return (etaisyys/1000).toFixed(1);		
+		}		
+		
+			
+	*/
+	
+	</script>
+	
+	<script async defer
+		src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDBvhhBO-uIXGE2Ubva7zxI41MLlbOerjw&callback=initMap">
+    </script>
+	
+</body>
+
+</html>

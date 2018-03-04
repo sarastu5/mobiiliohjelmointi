@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="msapplication-tap-highlight" content="no" />
+	<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width" />
+	<!--
+	<meta http-equiv="Content-Security-Policy" content="
+			default-src 'self' 'unsafe-inline' http://proto387.haaga-helia.fi/  http://api.openweathermap.org https://mts.googleapis.com https://maps.googleapis.com https://maps.gstatic.com ws://192.168.100.28:3000 http://code.jquery.com https://code.jquery.com  https://ssl.gstatic.com gap: data: blob: filesystem: ; 
+	" />	
+	-->
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+	<script src="https://code.jquery.com/jquery-2.1.4.js" integrity="sha256-siFczlgw4jULnUICcdm9gjQPZkw/YPDqhQ9+nAOScE4="	crossorigin="anonymous"></script>
+	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+   <link rel="stylesheet" type="text/css" href="css/index.css">
+	<title>Mobiiliohjelmointi</title>	
+</head>
+<body>			
+	<div data-role="page" id="etusivu">
+		<div data-role="header">
+			<h1>Auringonlaskutesti</h1>
+		</div>
+
+	      
+		<div data-role="main" class="ui-content ui-body-a">
+			<div id="lisaaTiedot"></div>			
+				<form id="lisaaLomake">
+					<label for="nimi">Nimi:</label>
+					<input type="text" name="nimi" id="nimi">
+					<label for="tulos">Tulos:</label>
+					<input type="text" name="tulos" id="tulos">
+					<label for="paivays">Päiväys:</label>
+					<input type="text" name="paivays" id="paivays">
+					<button class="ui-btn" id="lisaaUusi">Lisää uusi</button>
+				</form>					
+			<div id="naytaTiedot">
+				<table data-role="table" id="tiedotTaulu" class="ui-responsive">
+					<thead>
+						<tr>
+							<th>Aika:</th>
+							<th>Paikka:</th>
+							<th>Lat:</th>	
+							<th>Lng:</th>
+							<th>Arvio:</th>
+							<th>Kuvaus:</th>
+						</tr>
+					</thead>
+					<tbody>					
+					</tbody>
+				</table>
+			</div>
+
+
+		
+	</div>		
+	<script>
+				
+		$(document).on("pagecontainershow", function( event, ui ) {	
+			var toPage = ui.toPage[0].id;
+			if(toPage="etusivu"){
+				
+				haeTiedot();
+			}			
+		});
+		
+		function haeTiedot(){
+			$("#tiedotTaulu tbody").html(""); //tyhjentää tiedotTaulun tbodyn sisällön
+			$.getJSON("http://proto387.haaga-helia.fi/~a1602823/backend/auringonlasku.php", function(result){ //hakee backend-tiedoston tiedot ja muuttaa sen Javascriptille JSONiksi				
+			$.each(result, function(i, field) { //käy parametrina annetun taulukon läpi ja kutsuu jokaiselle metodia, fieldissä on yksi rivi
+					$("#tiedotTaulu tbody").append //append = lisää sisältöä perään				
+													("<tr><td>"
+													+field.Aika
+													+"</td><td>"	
+													+field.Paikka
+													+"</td><td>"
+													+field.Lat
+													+"</td><td>"
+													+field.Lng
+													+"</td><td>"
+													+field.Arvio
+													+"</td><td>"
+													+field.Kuvaus
+													+"</td></tr>"); //tietokannan sarakkeet
+																					
+				});
+			});
+		}
+				
+		$("#lisaaUusi").on("tap", function(){
+			if($("#nimi").val().length>0&&$("#tulos").val().length>0){				
+				$.ajax({
+					type: 'POST',
+					data: $("#lisaaLomake").serialize(),
+					url: 'http://proto387.haaga-helia.fi/~christian.brade/backend/insert.php',
+					success: function(data){						
+						haeTiedot();
+					},
+					error: function(){						
+						haeTiedot();						
+					}
+				});				
+			}			
+		});
+	</script>
+</body>
+
+</html>
