@@ -31,18 +31,31 @@
 			<h1>Auringonlaskut</h1>
 		</div>        
 		<div data-role="main" class="ui-content ui-body-a">	
-			<div id="map" style="height:600px"></div> 			
-		</div>
+			<div id="map" style="height:600px"></div>
+			<div id="lisaaTiedot"></div>			
+			<form id="lisaaLomake">
+				<label for="aika">Aika:</label>
+				<input type="text" name="aika" id="aika">
+				<label for="paikka">Paikka:</label>
+				<input type="text" name="paikka" id="paikka">
+				<label for="lat">Latitude:</label>
+				<input type="text" name="lat" id="lat">
+				<label for="lng">Longitude:</label>
+				<input type="text" name="lng" id="lng">
+				<label for="Kuvaus">Kuvaus:</label>
+				<input type="text" name="kuvaus" id="kuvaus">
+				<label for="arvio">Arvio:</label>
+				<input type="text" name="arvio" id="arvio">
 
-		<div data-role="footer">
-			<h1></h1>
+				<button class="ui-btn" id="lisaaAuringonlasku">Lisää</button>
+			</form>				
 		</div>
 	</div>
 	
 	<script type="text/javascript" src="cordova.js"></script> <!-- mahdollistaa laitteen ominaisuuksien käytön -->	
 	
 	<script>
-		function initMap() {
+		function initMap() { //funktio, joka luo kartan
 			var helsinki = {lat: 60.192059, lng: 24.945831};
 			var mapOptions = {
 				zoom: 10,
@@ -53,50 +66,47 @@
 		}
 		
 		function haeTiedot(map) {
-			$.getJSON("http://proto387.haaga-helia.fi/~a1602823/backend/auringonlasku.php", function(result){ //hakee backend-tiedoston tiedot ja muuttaa sen Javascriptille JSONiksi				
-			$.each(result, function(i, field) { //käy parametrina annetun taulukon läpi ja kutsuu jokaiselle metodia, fieldissä on yksi rivi
-				var paikka = {lat: parseFloat(field.Lat), lng: parseFloat(field.Lng)};
-				
-				if (field.Kuvaus == null) {
-					field.Kuvaus = " ";
-				}
-				
-				var contentString = "Aika: " + field.Aika + "<br> Paikka: " + field.Paikka + "<br> Arvio: " + field.Arvio + "<br> Kuvaus: " + field.Kuvaus;
+			$.getJSON("http://proto387.haaga-helia.fi/~a1602823/backend/auringonlasku.php", function(result) { //hakee backend-tiedoston tiedot ja muuttaa sen Javascriptille JSONiksi				
+				$.each(result, function(i, field) { //käy parametrina annetun taulukon läpi ja kutsuu jokaiselle metodia, fieldissä on yksi rivi
+					var paikka = {lat: parseFloat(field.Lat), lng: parseFloat(field.Lng)};
+					
+					if (field.Kuvaus == null) {
+						field.Kuvaus = " ";
+					}
+					
+					var contentString = "Aika: " + field.Aika + "<br> Paikka: " + field.Paikka + "<br> Arvio: " + field.Arvio + "<br> Kuvaus: " + field.Kuvaus;
 
-				var infowindow = new google.maps.InfoWindow({
-					content: contentString
-				});
-				
-				var marker = new google.maps.Marker({
-					position: paikka,
-					map: map
-				});
-				
-				marker.addListener('click', function() {
-					infowindow.open(map, marker);
-				});
-				
-				
-				
-				/*
-				$("#tiedotTaulu tbody").append //append = lisää sisältöä perään					
-												("<tr><td>"
-												+field.Aika
-												+"</td><td>"	
-												+field.Paikka
-												+"</td><td>"
-												+field.Lat
-												+"</td><td>"
-												+field.Lng
-												+"</td><td>"
-												+field.Arvio
-												+"</td><td>"
-												+field.Kuvaus
-												+"</td></tr>"); //tietokannan sarakkeet
-				*/
+					var infowindow = new google.maps.InfoWindow({
+						content: contentString
+					});
+					
+					var marker = new google.maps.Marker({
+						position: paikka,
+						map: map
+					});
+					
+					marker.addListener('click', function() {
+						infowindow.open(map, marker);
+					});
 				});
 			});
 		}
+
+		$("#lisaaAuringonlasku").on("tap", function(){
+			if($("#aika").val().length > 0 && $("#paikka").val().length > 0 && $("#lat").val().length > 0 && $("#lng").val().length > 0) {				
+				$.ajax({
+					type: 'POST',
+					data: $("#lisaaLomake").serialize(),
+					url: 'https://proto387.haaga-helia.fi/~a1602823/backend/insertAuringonlasku.php',
+					success: function(data) {						
+						haeTiedot();
+					},
+					error: function(){						
+						haeTiedot();						
+					}
+				});				
+			}			
+		});
 	
 	/*
 
