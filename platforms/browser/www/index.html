@@ -6,15 +6,11 @@
 	<meta name="format-detection" content="telephone=no" />
 	<meta name="msapplication-tap-highlight" content="no" />
 	<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width" />
-	<!--
-	<meta http-equiv="Content-Security-Policy" content="
-			default-src 'self' 'unsafe-inline'  http://api.openweathermap.org https://mts.googleapis.com https://maps.googleapis.com https://maps.gstatic.com ws://10.213.238.193:3000/ http://code.jquery.com https://code.jquery.com https://csi.gstatic.com  https://ssl.gstatic.com gap: data: blob: filesystem: ; 
-	" />
-	-->
 	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
 	<script src="https://code.jquery.com/jquery-2.1.4.js" integrity="sha256-siFczlgw4jULnUICcdm9gjQPZkw/YPDqhQ9+nAOScE4="	crossorigin="anonymous"></script>
+	<script type="text/javascript" src="cordova.js"></script>
 	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
-   <link rel="stylesheet" type="text/css" href="css/index.css">
+	<link rel="stylesheet" type="text/css" href="css/index.css">
 	<title>Auringonlaskut</title>
 	
 	<style>
@@ -32,205 +28,156 @@
 		</div>        
 		<div data-role="main" class="ui-content ui-body-a">	
 			<div id="map" style="height:600px"></div>
-			<div id="lisaaTiedot"></div>			
 			<form id="lisaaLomake">
 				<label for="aika">Aika:</label>
-				<input type="text" name="aika" id="aika">
+				<input type="text" name="aika" id="aika" onchange="validateForm()">
 				<label for="paikka">Paikka:</label>
-				<input type="text" name="paikka" id="paikka">
-				<label for="lat">Latitude:</label>
-				<input type="text" name="lat" id="lat">
-				<label for="lng">Longitude:</label>
-				<input type="text" name="lng" id="lng">
+				<input type="text" name="paikka" id="paikka" onchange="validateForm()">
+				<input type="hidden" name="lat" id="lat" onchange="validateForm()">
+				<input type="hidden" name="lng" id="lng" onchange="validateForm()">
 				<label for="Kuvaus">Kuvaus:</label>
-				<input type="text" name="kuvaus" id="kuvaus">
+				<input type="text" name="kuvaus" id="kuvaus" onchange="validateForm()">
 				<label for="arvio">Arvio:</label>
-				<input type="text" name="arvio" id="arvio">
+				<input type="text" name="arvio" id="arvio" onchange="validateForm()">
 
-				<button class="ui-btn" id="lisaaAuringonlasku">Lisää</button>
+				<button class="ui-btn" disabled id="lisaaAuringonlasku">Lisää</button>
 			</form>				
 		</div>
 	</div>
-	
-	<script type="text/javascript" src="cordova.js"></script> <!-- mahdollistaa laitteen ominaisuuksien käytön -->	
+	<script
+		src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDBvhhBO-uIXGE2Ubva7zxI41MLlbOerjw">
+    </script>
 	
 	<script>
-		function initMap() { //funktio, joka luo kartan
-			var helsinki = {lat: 60.192059, lng: 24.945831};
+
+		document.addEventListener("deviceReady", onDeviceReady, false);
+
+		var markers = [];
+
+		function onDeviceReady() {			
+			var onSuccess = function(position) {
+				initMap(position.coords.latitude, position.coords.longitude); //kun on saanut lokaation/koordinaatit, kutsuu initMapia
+    		};
+
+    		// onError Callback receives a PositionError object
+    		var onError = function(error) {
+       	 		alert('code: '    + error.code    + '\n' +
+            	'message: ' + error.message + '\n');
+    		}				
+    		navigator.geolocation.getCurrentPosition(onSuccess, onError); //pyytää laitteelta lokaatiota
+		}
+
+		function initMap(latitude, longitude) { //luo kartan
 			var mapOptions = {
 				zoom: 10,
-				center: helsinki
+				center: {lat: latitude, lng: longitude}
 			};
-			var map = new google.maps.Map(document.getElementById('map'), mapOptions);
-			haeTiedot(map); //hakee kuvat palvelimelta
+
+			map = new google.maps.Map(document.getElementById('map'), mapOptions); //luo kartan, missä map on globaali muuttuja
+
+			haeAuringonlaskut(); //hakee auringonlaskujen tiedot palvelimelta
+
+			google.maps.event.addListener(map, "click", function (event) { //tallentaa klikatun pisteen lat- ja lng-arvoihin
+				if (typeof insertmarker !== 'undefined') {
+					insertmarker.setMap(null);
+				}
+				insertmarker = new google.maps.Marker({
+						position: {lat: event.latLng.lat(), lng: event.latLng.lng()},
+						map: map
+				});
+				$("#lat").val(event.latLng.lat()); //tallentaa koordinaatit formille (piilotettuihin kenttiin)
+				$("#lng").val(event.latLng.lng());
+			});
 		}
 		
-		function haeTiedot(map) {
+		function haeAuringonlaskut() {
+			clearMarkers();
+			markers = [];
+
 			$.getJSON("http://proto387.haaga-helia.fi/~a1602823/backend/auringonlasku.php", function(result) { //hakee backend-tiedoston tiedot ja muuttaa sen Javascriptille JSONiksi				
 				$.each(result, function(i, field) { //käy parametrina annetun taulukon läpi ja kutsuu jokaiselle metodia, fieldissä on yksi rivi
-					var paikka = {lat: parseFloat(field.Lat), lng: parseFloat(field.Lng)};
+
+					var paikka = {lat: parseFloat(field.Lat), lng: parseFloat(field.Lng)}; 
+					
+					var marker = new google.maps.Marker({ //luo markerin kartalle
+						position: paikka,
+						map: map
+					});
+
+					markers.push(marker);
 					
 					if (field.Kuvaus == null) {
 						field.Kuvaus = " ";
 					}
+
+					var poistabutton = '<button type="button" id="myBtn" onclick="poistaAuringonlasku('+ field.Auringonlasku_id +')">Poista auringonlasku</button>'; 
 					
-					var contentString = "Aika: " + field.Aika + "<br> Paikka: " + field.Paikka + "<br> Arvio: " + field.Arvio + "<br> Kuvaus: " + field.Kuvaus;
+					var contentString = "Aika: " + field.Aika + "<br> Paikka: " + field.Paikka + "<br> Arvio: " + field.Arvio + "<br> Kuvaus: " + field.Kuvaus + "<br>" + poistabutton;
 
 					var infowindow = new google.maps.InfoWindow({
 						content: contentString
 					});
 					
-					var marker = new google.maps.Marker({
-						position: paikka,
-						map: map
-					});
-					
-					marker.addListener('click', function() {
+					marker.addListener('click', function() { //avaa markerin info-windown
 						infowindow.open(map, marker);
 					});
 				});
 			});
 		}
 
-		$("#lisaaAuringonlasku").on("tap", function(){
-			if($("#aika").val().length > 0 && $("#paikka").val().length > 0 && $("#lat").val().length > 0 && $("#lng").val().length > 0) {				
+		// Sets the map on all markers in the array.
+    	function setMapOnAll(map) {
+        	for (var i = 0; i < markers.length; i++) {
+          	markers[i].setMap(map);
+        	}
+      	}
+
+      // Removes the markers from the map, but keeps them in the array.
+      	function clearMarkers() {
+        	setMapOnAll(null);
+      	}
+
+		$("#lisaaAuringonlasku").on("tap", function(e) { //lomakkeen nappi
+			e.preventDefault(); //= älä lähetä lomaketta
+			
+			if($("#aika").val().length > 0 && $("#paikka").val().length > 0 && $("#lat").val().length > 0 && $("#lng").val().length > 0) { //tarkistaa, että kaikki tarvittavat arvot on annettu
+
 				$.ajax({
 					type: 'POST',
-					data: $("#lisaaLomake").serialize(),
-					url: 'https://proto387.haaga-helia.fi/~a1602823/backend/insertAuringonlasku.php',
+					data: $("#lisaaLomake").serialize(), //muuttaa lomakkeen arvot dataan sopivaan muotoon (hashiksi)
+					url: 'http://proto387.haaga-helia.fi/~a1602823/backend/insertAuringonlasku.php',
 					success: function(data) {						
-						haeTiedot();
+						haeAuringonlaskut();
 					},
 					error: function(){						
-						haeTiedot();						
+						haeAuringonlaskut();						
 					}
-				});				
+				});	
+				document.getElementById('lisaaLomake').reset();		
 			}			
 		});
-	
-	/*
 
-		//Laitetaan kaksi jarrua päälle. 
-		var laiteKesken = $.Deferred(); //jarru_1=True
-		var saaSivuKesken = $.Deferred(); //jarru_2=True	
-		
-		//Kun molemmat jarrut on avattu aloitamme laitteen koordinaattien etsimisen (Käytä Firefoxia)
-		$.when(laiteKesken, saaSivuKesken).done(saaSivuValmis);
-		
-		//Lisätään tapahtumankuuntelija tapahtumalle "onDeviceReady"
-		document.addEventListener("deviceReady", onDeviceReady, false);
-		function onDeviceReady() {			
-			laiteKesken.resolve();	//jarru_1=False				
-		}	
-		
-		$(document).on("pagecontainershow", function( event, ui ) {	
-			var toPage = ui.toPage[0].id; 
-			if(toPage=="etusivu"){
-				//haeSaa(60.17,24.94);				
-				saaSivuKesken.resolve(); //jarru_2=False
-			}			
-		});	
-		
-		function saaSivuValmis() {
-		
-			navigator.geolocation.getCurrentPosition(onLocationSuccess, onLocationError, { timeout: 20000 });
-			function onLocationSuccess(position) {				
-				haeSaa(position.coords.latitude, position.coords.longitude);		
-				teeMap(position.coords.latitude, position.coords.longitude);					
-			}
-			function onLocationError() {				
-				console.log("Paikannus ei onnistu");
-			}
-		}
-		
-		function haeSaa(lat, lon) {
-			$.ajax(
-				{
-				url: "http://api.openweathermap.org/data/2.5/weather?lang=fi&lat=" + lat 
-				+ "&lon=" + lon +"&units=metric&APPID=14420295a6aaaebcf8ab02e2d2f6a670",
-				dataType: "json",
-				timeout: 5000
-				}
-			).done(function(data) 
-				{
-				var teksti = "<h3 style='margin-bottom:0em'>" +
-				"<img align='middle' src='http://api.openweathermap.org/img/w/" + data.weather[0].icon + "'>" + 
-				data.main.temp.toFixed(1) + "'C</h3>";	
-				teksti = teksti + "<p>" + data.weather[0].description + "</p>";
-				$("#saaVastaus").html(teksti);
-				}
-			).fail(function() 
-				{
-				$("#saaVastaus").html("Säätä ei pystytä hakemaan");
-				}
-			)
-		}
-		var paikka;
-		function teeMap(lat, lon) {				
-			paikka = new google.maps.LatLng(lat, lon);	
-			
-			var myOptions = {
-				zoom:8,
-				center: {lat: lat, lng: lon} //tai center: paikka
-			};
-			
-			var kartta = new google.maps.Map(document.getElementById("mapKartta"), myOptions);	//tai $("#mapKartta")[0], myOptions	
-			
-			google.maps.event.addListener(kartta, "click", function (event) {
-				//lat and lng is available in e object
-				var lat = event.latLng.lat();
-				var lng = event.latLng.lng();
-				alert(lat + ":" + lng);
-			});
-			
-			var infoWindow = new google.maps.InfoWindow;
-			infoWindow.setPosition(paikka);
-            infoWindow.setContent('Olet tässä.');
-            infoWindow.open(kartta);
-			
+		function poistaAuringonlasku(auringonlasku_id) {
 			$.ajax({
-					type: 'POST',
-					data: $("#loginLomake").serialize(),
-					url: 'http://proto387.haaga-helia.fi/~christian.brade/backend/paikat.html',
-					success: function(data){
-						var locations=[];
-						var paikat = JSON.parse(data);						
-						for(var i=0;i<paikat.length;i++){
-							var paikka={
-							"lat" : parseFloat(paikat[i].lat),
-							"lng" : parseFloat(paikat[i].lng)
-							};							
-							locations.push(paikka);
-						}	
-						var markers = locations.map(function(location, i) {
-						return new google.maps.Marker({
-							position: location,
-							map: kartta,
-							title: "paikka_"+i,	
-							label: laskeEtaisyys(new google.maps.LatLng(location)) + " km"
-						});				
-			});	
-					},
-					error: function(){	
-						console.log(2);											
-					}
-				});			
-			
-						
+				type: 'POST', //http-requestin tyyppi, POST = muokataan, GET = ei muokata, nyt ei väliä, koska backend ei välitä siitä
+				data: {id: auringonlasku_id}, //poistettavan auringonlasku_id
+				url: 'http://proto387.haaga-helia.fi/~a1602823/backend/removeAuringonlasku.php',
+				success: function(data) {						
+					haeAuringonlaskut();
+				},
+				error: function() {						
+					haeAuringonlaskut();						
+				}
+			});				
 		}
-		function laskeEtaisyys(kohde){ //muista lisätä maps.googleapis -linkin perään &libraries=geometry
-			var etaisyys = google.maps.geometry.spherical.computeDistanceBetween(paikka, kohde);
-			return (etaisyys/1000).toFixed(1);		
-		}		
-		
-			
-	*/
+
+		function validateForm() {
+			if($("#aika").val().length > 0 && $("#paikka").val().length > 0 && $("#lat").val().length > 0 && $("#lng").val().length > 0) {
+				$('#lisaaAuringonlasku').prop('disabled', false);
+			}
+		}
 	
 	</script>
-	
-	<script async defer
-		src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDBvhhBO-uIXGE2Ubva7zxI41MLlbOerjw&callback=initMap">
-    </script>
 	
 </body>
 
