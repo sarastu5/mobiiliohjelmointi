@@ -52,7 +52,7 @@
 
 		document.addEventListener("deviceReady", onDeviceReady, false);
 
-		var markers = [];
+		var markers = []; //kartan markkereita varten tehty tyhjä taulukko
 
 		function onDeviceReady() {			
 			var onSuccess = function(position) {
@@ -67,19 +67,19 @@
     		navigator.geolocation.getCurrentPosition(onSuccess, onError); //pyytää laitteelta lokaatiota
 		}
 
-		function initMap(latitude, longitude) { //luo kartan
+		function initMap(latitude, longitude) { //metodi, jossa luodaan kartta
 			var mapOptions = {
 				zoom: 10,
 				center: {lat: latitude, lng: longitude}
 			};
 
-			map = new google.maps.Map(document.getElementById('map'), mapOptions); //luo kartan, missä map on globaali muuttuja
+			map = new google.maps.Map(document.getElementById('map'), mapOptions); //luo kartan. map on globaali muuttuja
 
 			haeAuringonlaskut(); //hakee auringonlaskujen tiedot palvelimelta
 
 			google.maps.event.addListener(map, "click", function (event) { //tallentaa klikatun pisteen lat- ja lng-arvoihin
-				if (typeof insertmarker !== 'undefined') {
-					insertmarker.setMap(null);
+				if (typeof insertmarker !== 'undefined') { //jos insertmarker on olemassa ->
+					insertmarker.setMap(null); //poistaa insertmarkerin kartalta
 				}
 				insertmarker = new google.maps.Marker({
 						position: {lat: event.latLng.lat(), lng: event.latLng.lng()},
@@ -106,7 +106,7 @@
 
 					markers.push(marker);
 					
-					if (field.Kuvaus == null) {
+					if (field.Kuvaus == null) { //jos kuvaus on tyhjä, ei näytä mitään
 						field.Kuvaus = " ";
 					}
 
@@ -153,7 +153,8 @@
 						haeAuringonlaskut();						
 					}
 				});	
-				document.getElementById('lisaaLomake').reset();		
+				document.getElementById('lisaaLomake').reset(); //tyhjentää lomakkeen lisäyksen jälkeen
+				$('#lisaaAuringonlasku').prop('disabled', true); //lisää-nappi disabloitu		
 			}			
 		});
 
